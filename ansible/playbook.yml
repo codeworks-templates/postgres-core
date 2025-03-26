@@ -42,6 +42,14 @@
         mode: 0644
       when: caddy_template.stat.exists
 
+    - name: Allow docker.io as default registry for Podman
+      become: true
+      lineinfile:
+        path: /etc/containers/registries.conf
+        regexp: '^unqualified-search-registries ='
+        line: 'unqualified-search-registries = ["docker.io"]'
+
+
     - name: Launch services
       shell: |
         cd {{ repo_dest }}
