@@ -14,30 +14,30 @@
 
     - name: Write out .env file from vault
       template:
-        src: "{{ repo_dest }}/ansible/templates/env.j2"
+        src: "ansible/templates/env.j2"
         dest: "{{ repo_dest }}/.env"
         mode: 0600
 
     - name: Check for docker-compose.override.yml.j2 template
       stat:
-        path: "{{ repo_dest }}/ansible/templates/docker-compose.override.yml.j2"
+        path: "ansible/templates/docker-compose.override.yml.j2"
       register: override_compose
 
     - name: Render docker-compose.override.yml if template exists
       template:
-        src: "{{ repo_dest }}/ansible/templates/docker-compose.override.yml.j2"
+        src: "ansible/templates/docker-compose.override.yml.j2"
         dest: "{{ repo_dest }}/docker-compose.override.yml"
         mode: 0644
       when: override_compose.stat.exists
 
     - name: Check for Caddyfile.j2 template
       stat:
-        path: "{{ repo_dest }}/ansible/templates/Caddyfile.j2"
+        path: "ansible/templates/Caddyfile.j2"
       register: caddy_template
 
     - name: Render Caddyfile from vault if template exists
       template:
-        src: "{{ repo_dest }}/ansible/templates/Caddyfile.j2"
+        src: "ansible/templates/Caddyfile.j2"
         dest: "{{ repo_dest }}/caddy/Caddyfile"
         mode: 0644
       when: caddy_template.stat.exists
