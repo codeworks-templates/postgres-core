@@ -2,7 +2,7 @@
   become: yes
   vars:
     environment: "{{ environment | default('prod') }}"
-    repo_url: https://github.com/codeworks-templates/postgres-stack.git
+    repo_url: https://github.com/codeworks-templates/postgres-core.git
     repo_dest: "/home/{{ ansible_user }}/{{ environment }}-stack"
 
   tasks:
