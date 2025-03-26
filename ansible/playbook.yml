@@ -1,9 +1,9 @@
 - hosts: all
   become: yes
   vars:
-    environment: "{{ environment | default('prod') }}"
+    deploy_env: "{{ deploy_env | default('prod') }}"
     repo_url: https://github.com/codeworks-templates/postgres-core.git
-    repo_dest: "/home/{{ ansible_user }}/{{ environment }}-stack"
+    repo_dest: "/home/{{ ansible_user }}/{{ deploy_env }}-stack"
 
   tasks:
     - name: Ensure required packages are installed
@@ -27,7 +27,7 @@
 
     - name: Check for docker-compose.override.yml.j2 template
       stat:
-        path: "{{ playbook_dir }}/templates/docker-compose.override.yml.j2"
+        path: "ansible/templates/docker-compose.override.yml.j2"
       register: override_compose
 
     - name: Render docker-compose.override.yml if template exists
@@ -39,7 +39,7 @@
 
     - name: Check for Caddyfile.j2 template
       stat:
-        path: "{{ playbook_dir }}/templates/Caddyfile.j2"
+        path: "ansible/templates/Caddyfile.j2"
       register: caddy_template
 
     - name: Render Caddyfile from vault if template exists
