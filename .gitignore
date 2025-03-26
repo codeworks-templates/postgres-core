@@ -1,0 +1,9 @@
+.env
+.env.*
+frontend/dist/
+pgadmin-data/
+pg_backup_data/
+postgres-ssl/server.key
+caddy_data/
+caddy_config/
+*.log

@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: my_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgresql-config/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgresql-config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./postgres-ssl/server.crt:/var/lib/postgresql/server.crt:ro
+      - ./postgres-ssl/server.key:/var/lib/postgresql/server.key:ro
+    ports:
+      - "5432:5432"
+    command: >
+      bash -c "
+        cp /etc/postgresql/postgresql.conf /var/lib/postgresql/data/postgresql.conf &&
+        cp /etc/postgresql/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf &&
+        docker-entrypoint.sh postgres -c config_file=/var/lib/postgresql/data/postgresql.conf &
+        pid=$$!
+        sleep 5
+        until pg_isready -U ${POSTGRES_USER}; do sleep 1; done
+        psql -v ON_ERROR_STOP=1 --username ${POSTGRES_USER} --dbname ${POSTGRES_DB} <<-EOSQL
+          CREATE USER ${APP_USER} WITH PASSWORD '${APP_PASS}';
+          CREATE DATABASE ${APP_DB} OWNER ${APP_USER};
+          GRANT ALL PRIVILEGES ON DATABASE ${APP_DB} TO ${APP_USER};
+        EOSQL
+        wait $$pid
+      "
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - backend
+
+  pg_backup:
+    image: postgres:16
+    container_name: pg_backup
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    entrypoint: >
+      bash -c '
+        mkdir -p /backups &&
+        while true; do
+          pg_dump -h postgres -U ${POSTGRES_USER} -d ${APP_DB} -F c -f /backups/appdb_$(date +%F_%T).dump &&
+          find /backups -type f -mtime +7 -delete;
+          sleep 86400;
+        done
+      '
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_backup_data:/backups
+    networks:
+      - backend
+
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    networks:
+      - backend
+
+  postgres_exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+    networks:
+      - backend
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - backend
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - backend
+
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./frontend/dist:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - backend
+
+volumes:
+  pg_data:
+  pg_backup_data:
+  grafana_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:
+    driver: bridge

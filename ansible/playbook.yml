@@ -1,0 +1,55 @@
+- hosts: all
+  become: yes
+  vars:
+    environment: "{{ environment | default('prod') }}"
+    repo_url: https://github.com/codeworks-templates/postgres-stack.git
+    repo_dest: "/home/{{ ansible_user }}/{{ environment }}-stack"
+
+  tasks:
+    - name: Ensure required packages are installed
+      apt:
+        name: ['podman', 'podman-compose', 'python3-pip', 'git']
+        state: present
+        update_cache: yes
+
+    - name: Clone core template
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_dest }}"
+        version: main
+        force: yes
+
+    - name: Write out .env file from vault
+      template:
+        src: env.j2
+        dest: "{{ repo_dest }}/.env"
+        mode: 0600
+
+    - name: Check for docker-compose.override.yml.j2 template
+      stat:
+        path: "{{ playbook_dir }}/templates/docker-compose.override.yml.j2"
+      register: override_compose
+
+    - name: Render docker-compose.override.yml if template exists
+      template:
+        src: docker-compose.override.yml.j2
+        dest: "{{ repo_dest }}/docker-compose.override.yml"
+        mode: 0644
+      when: override_compose.stat.exists
+
+    - name: Check for Caddyfile.j2 template
+      stat:
+        path: "{{ playbook_dir }}/templates/Caddyfile.j2"
+      register: caddy_template
+
+    - name: Render Caddyfile from vault if template exists
+      template:
+        src: Caddyfile.j2
+        dest: "{{ repo_dest }}/caddy/Caddyfile"
+        mode: 0644
+      when: caddy_template.stat.exists
+
+    - name: Launch services
+      shell: |
+        cd {{ repo_dest }}
+        podman-compose --env-file .env up -d
