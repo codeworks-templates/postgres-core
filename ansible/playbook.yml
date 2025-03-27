@@ -33,19 +33,19 @@
 
     - name: Render docker-compose.override.yml
       template:
-        src: core-template/ansible/templates/docker-compose.override.yml.j2
+        src: templates/docker-compose.override.yml.j2
         dest: "{{ repo_dest }}/docker-compose.override.yml"
         mode: 0644
 
     - name: Render Caddyfile
       template:
-        src: core-template/ansible/templates/Caddyfile.j2
+        src: templates/Caddyfile.j2
         dest: "{{ repo_dest }}/caddy/Caddyfile"
         mode: 0644
 
     - name: Render .env file from vault
       template:
-        src: core-template/ansible/templates/env.j2
+        src: templates/env.j2
         dest: "{{ repo_dest }}/.env"
         mode: 0600
 
