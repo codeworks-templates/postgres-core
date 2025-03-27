@@ -12,10 +12,25 @@
         state: present
         update_cache: yes
     
-    - name: Install AWS CLI via pip
-      pip:
-        name: awscli
-        executable: pip3
+    - name: Download AWS CLI v2 bundled installer
+      get_url:
+        url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+        dest: "/tmp/awscliv2.zip"
+        mode: '0644'
+
+    - name: Unzip AWS CLI v2 installer
+      unarchive:
+        src: "/tmp/awscliv2.zip"
+        dest: "/tmp"
+        remote_src: yes
+
+    - name: Run AWS CLI v2 installer
+      shell: |
+        ./aws/install --update
+      args:
+        chdir: /tmp
+        creates: /usr/local/bin/aws
+
 
     - name: Write out .env file from vault
       template:
