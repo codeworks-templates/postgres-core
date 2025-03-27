@@ -1,9 +1,10 @@
 - hosts: all
   become: yes
   vars:
-    deploy_env: "{{ deploy_env | default('prod') }}"
     repo_url: https://github.com/codeworks-templates/postgres-core.git
-    repo_dest: "/home/{{ ansible_user }}/{{ deploy_env }}-stack"
+    deploy_env: "{{ deploy_env | default('prod') }}"
+    repo_name: "{{ repo_name | default('prod-stack') }}"
+    repo_dest: "/home/{{ ansible_user }}/{{ repo_name }}"
 
   tasks:
     - name: Ensure required packages are installed
@@ -48,7 +49,6 @@
         path: /etc/containers/registries.conf
         regexp: '^unqualified-search-registries ='
         line: 'unqualified-search-registries = ["docker.io"]'
-
 
     - name: Launch services
       shell: |
