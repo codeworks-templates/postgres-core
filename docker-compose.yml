@@ -22,16 +22,20 @@ services:
       bash -c "
         cp /etc/postgresql/postgresql.conf /var/lib/postgresql/data/postgresql.conf &&
         cp /etc/postgresql/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf &&
-        docker-entrypoint.sh postgres -c config_file=/var/lib/postgresql/data/postgresql.conf &
-        pid=$$!
-        sleep 5
-        until pg_isready -U ${POSTGRES_USER}; do sleep 1; done
-        psql -v ON_ERROR_STOP=1 --username ${POSTGRES_USER} --dbname ${POSTGRES_DB} <<-EOSQL
-          CREATE USER ${APP_USER} WITH PASSWORD '${APP_PASS}';
-          CREATE DATABASE ${APP_DB} OWNER ${APP_USER};
-          GRANT ALL PRIVILEGES ON DATABASE ${APP_DB} TO ${APP_USER};
-        EOSQL
-        wait $$pid
+        if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+          docker-entrypoint.sh postgres -c config_file=/var/lib/postgresql/data/postgresql.conf &
+          pid=$!
+          sleep 5
+          until pg_isready -U ${POSTGRES_USER}; do sleep 1; done
+          psql -v ON_ERROR_STOP=1 --username ${POSTGRES_USER} --dbname ${POSTGRES_DB} <<-EOSQL
+            CREATE USER ${APP_USER} WITH PASSWORD '${APP_PASS}';
+            CREATE DATABASE ${APP_DB} OWNER ${APP_USER};
+            GRANT ALL PRIVILEGES ON DATABASE ${APP_DB} TO ${APP_USER};
+          EOSQL
+          wait $pid
+        else
+          docker-entrypoint.sh postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+        fi
       "
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
@@ -70,56 +74,6 @@ services:
     networks:
       - backend
 
-
-  node_exporter:
-    image: prom/node-exporter
-    container_name: node_exporter
-    restart: unless-stopped
-    ports:
-      - "9100:9100"
-    networks:
-      - backend
-
-  postgres_exporter:
-    image: quay.io/prometheuscommunity/postgres-exporter
-    container_name: postgres_exporter
-    restart: unless-stopped
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
-    ports:
-      - "9187:9187"
-    depends_on:
-      - postgres
-    networks:
-      - backend
-
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    restart: unless-stopped
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - backend
-
-  grafana:
-    image: grafana/grafana
-    container_name: grafana
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    networks:
-      - backend
-
   caddy:
     image: caddy:latest
     container_name: caddy
@@ -138,7 +92,6 @@ services:
 volumes:
   pg_data:
   pg_backup_data:
-  grafana_data:
   caddy_data:
   caddy_config:
 
