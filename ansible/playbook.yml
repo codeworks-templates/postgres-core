@@ -28,7 +28,7 @@
         src: templates/docker-compose.override.yml.j2
         dest: "{{ repo_dest }}/docker-compose.override.yml"
         mode: 0644
-      when: override_compose.stat.exists
+      when: override_compose.stat is defined and override_compose.stat.exists == true
 
     - name: Check for Caddyfile.j2 template
       stat:
@@ -40,7 +40,7 @@
         src: templates/Caddyfile.j2
         dest: "{{ repo_dest }}/caddy/Caddyfile"
         mode: 0644
-      when: caddy_template.stat.exists
+      when: caddy_template.stat is defined and caddy_template.stat.exists == true
 
     - name: Allow docker.io as default registry for Podman
       become: true
