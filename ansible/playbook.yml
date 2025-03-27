@@ -31,10 +31,21 @@
         chdir: /tmp
         creates: /usr/local/bin/aws
 
-
-    - name: Write out .env file from vault
+    - name: Render docker-compose.override.yml
       template:
-        src: templates/env.j2
+        src: core-template/ansible/templates/docker-compose.override.yml.j2
+        dest: "{{ repo_dest }}/docker-compose.override.yml"
+        mode: 0644
+
+    - name: Render Caddyfile
+      template:
+        src: core-template/ansible/templates/Caddyfile.j2
+        dest: "{{ repo_dest }}/caddy/Caddyfile"
+        mode: 0644
+
+    - name: Render .env file from vault
+      template:
+        src: core-template/ansible/templates/env.j2
         dest: "{{ repo_dest }}/.env"
         mode: 0600
 
@@ -54,32 +65,6 @@
         job: >
           set -a && . {{ repo_dest }}/.env && set +a &&
           /usr/local/bin/aws s3 cp $(ls -t {{ repo_dest }}/backups/*.dump 2>/dev/null | head -n1) s3://$S3_BUCKET/ || echo "No dump to upload"
-
-    - name: Check for docker-compose.override.yml.j2 template
-      stat:
-        path: "templates/docker-compose.override.yml.j2"
-      register: override_compose
-      delegate_to: localhost
-
-    - name: Render docker-compose.override.yml if template exists
-      template:
-        src: templates/docker-compose.override.yml.j2
-        dest: "{{ repo_dest }}/docker-compose.override.yml"
-        mode: 0644
-      when: override_compose.stat is defined and override_compose.stat.exists
-
-    - name: Check for Caddyfile.j2 template
-      stat:
-        path: "templates/Caddyfile.j2"
-      register: caddy_template
-      delegate_to: localhost
-
-    - name: Render Caddyfile from vault if template exists
-      template:
-        src: templates/Caddyfile.j2
-        dest: "{{ repo_dest }}/caddy/Caddyfile"
-        mode: 0644
-      when: caddy_template.stat is defined and caddy_template.stat.exists
 
     - name: Allow docker.io as default registry for Podman
       become: true
