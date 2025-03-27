@@ -1,7 +1,6 @@
 - hosts: all
   become: yes
   vars:
-    repo_url: https://github.com/codeworks-templates/postgres-core.git
     deploy_env: "{{ deploy_env | default('prod') }}"
     repo_name: "{{ repo_name | default('prod-stack') }}"
     repo_dest: "/home/{{ ansible_user }}/{{ repo_name }}"
@@ -15,7 +14,7 @@
 
     - name: Write out .env file from vault
       template:
-        src: "templates/env.j2"
+        src: templates/env.j2
         dest: "{{ repo_dest }}/.env"
         mode: 0600
 
@@ -26,7 +25,7 @@
 
     - name: Render docker-compose.override.yml if template exists
       template:
-        src: "templates/docker-compose.override.yml.j2"
+        src: templates/docker-compose.override.yml.j2
         dest: "{{ repo_dest }}/docker-compose.override.yml"
         mode: 0644
       when: override_compose.stat.exists
@@ -38,7 +37,7 @@
 
     - name: Render Caddyfile from vault if template exists
       template:
-        src: "templates/Caddyfile.j2"
+        src: templates/Caddyfile.j2
         dest: "{{ repo_dest }}/caddy/Caddyfile"
         mode: 0644
       when: caddy_template.stat.exists
