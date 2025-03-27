@@ -1,4 +1,0 @@
-# core-template/ansible/requirements.yml
-collections:
-  - name: community.general
-    version: ">=6.1.0"

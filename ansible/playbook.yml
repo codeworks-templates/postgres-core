@@ -23,15 +23,6 @@
         dest: "{{ repo_dest }}/.env"
         mode: 0600
 
-    - name: Load .env into Ansible vars
-      community.general.read_env:
-        path: "{{ repo_dest }}/.env"
-      register: env_vars
-
-    - name: Set fact for s3_bucket
-      set_fact:
-        s3_bucket: "{{ env_vars.content.S3_BUCKET | default(omit) }}"
-
     - name: Ensure backups directory exists
       file:
         path: "{{ repo_dest }}/backups"
@@ -46,8 +37,8 @@
         minute: "0"
         hour: "2"
         job: >
-          /usr/local/bin/aws s3 cp $(ls -t {{ repo_dest }}/backups/*.dump 2>/dev/null | head -n1) s3://{{ s3_bucket }}/ || echo "No dump to upload"
-      when: s3_bucket is defined
+          set -a && . {{ repo_dest }}/.env && set +a &&
+          /usr/local/bin/aws s3 cp $(ls -t {{ repo_dest }}/backups/*.dump 2>/dev/null | head -n1) s3://$S3_BUCKET/ || echo "No dump to upload"
 
     - name: Check for docker-compose.override.yml.j2 template
       stat:
