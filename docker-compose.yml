@@ -55,12 +55,19 @@ services:
     entrypoint: >
       bash -c '
         mkdir -p /backups &&
+        if [ -z "$APP_DB" ] || [ -z "$S3_BUCKET" ]; then
+          echo "Skipping pg_backup: APP_DB or S3_BUCKET not set";
+          sleep infinity;
+        fi &&
         while true; do
-          pg_dump -h postgres -U ${POSTGRES_USER} -d ${APP_DB} -F c -f /backups/appdb_$(date +%F_%T).dump &&
+          DUMP_FILE="/backups/appdb_$(date +%F_%T).dump"
+          pg_dump -h postgres -U ${POSTGRES_USER:-root} -d ${APP_DB} -F c -f $DUMP_FILE &&
+          aws s3 cp $DUMP_FILE s3://$S3_BUCKET/ &&
           find /backups -type f -mtime +7 -delete;
           sleep 86400;
         done
       '
+
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:

@@ -8,7 +8,7 @@
   tasks:
     - name: Ensure required packages are installed
       apt:
-        name: ['podman', 'podman-compose', 'python3-pip', 'git']
+        name: ['podman', 'podman-compose', 'python3-pip', 'git', 'awscli']
         state: present
         update_cache: yes
 
